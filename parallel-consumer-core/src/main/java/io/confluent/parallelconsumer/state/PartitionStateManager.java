@@ -112,7 +112,7 @@ public class PartitionStateManager<K, V> implements ConsumerRebalanceListener {
                             "or is this a race? Please file a GH issue. Partition: {}, state: {}", partitionAssignment, previouslyAssignedState);
 
                     // remove the previouslyAssignedState IncompleteOffsets since previous stale workers already removed
-//                    previouslyAssignedState.getIncompleteOffsets().clear();
+                    previouslyAssignedState.getIncompleteOffsets().clear();
                 }
             }
         }
