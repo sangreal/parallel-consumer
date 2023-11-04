@@ -100,6 +100,7 @@ public class PartitionState<K, V> {
      *         storage
      */
     @NonNull
+    @Getter(PACKAGE)
     private ConcurrentSkipListMap<Long, Optional<ConsumerRecord<K, V>>> incompleteOffsets;
 
     /**
@@ -341,19 +342,24 @@ public class PartitionState<K, V> {
         boolean pollBelowExpected = bootstrapPolledOffset < expectedBootstrapRecordOffset;
 
         if (pollAboveExpected) {
-            // previously committed offset record has been removed from the topic, so we need to truncate up to it
-            log.warn("Truncating state - removing records lower than {} from partition {} of topic {}. Offsets have been removed from the partition " +
-                            "by the broker or committed offset has been raised. Bootstrap polled {} but expected {} from loaded commit data. " +
-                            "Could be caused by record retention or compaction and offset reset policy LATEST.",
-                    bootstrapPolledOffset,
-                    this.tp.partition(),
-                    this.tp.topic(),
-                    bootstrapPolledOffset,
-                    expectedBootstrapRecordOffset);
+            // only truncate :
+            // 1. is old consumer which has been assigned to this partition
+            // 2. the incompleteOffsets not clear yet.
+            if (!incompleteOffsets.isEmpty()) {
+                // previously committed offset record has been removed from the topic, so we need to truncate up to it
+                log.warn("Truncating state - removing records lower than {} from partition {} of topic {}. Offsets have been removed from the partition " +
+                                "by the broker or committed offset has been raised. Bootstrap polled {} but expected {} from loaded commit data. " +
+                                "Could be caused by record retention or compaction and offset reset policy LATEST.",
+                        bootstrapPolledOffset,
+                        this.tp.partition(),
+                        this.tp.topic(),
+                        bootstrapPolledOffset,
+                        expectedBootstrapRecordOffset);
 
-            // truncate
-            final NavigableSet<Long> incompletesToPrune = incompleteOffsets.keySet().headSet(bootstrapPolledOffset, false);
-            incompletesToPrune.forEach(incompleteOffsets::remove);
+                // truncate
+                final NavigableSet<Long> incompletesToPrune = incompleteOffsets.keySet().headSet(bootstrapPolledOffset, false);
+                incompletesToPrune.forEach(incompleteOffsets::remove);
+            }
         } else if (pollBelowExpected) {
             // reset to lower offset detected, so we need to reset our state to match
             log.warn("Bootstrap polled offset has been reset to an earlier offset ({}) for partition {} of topic {} - truncating state - all records " +
